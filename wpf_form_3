@@ -1,0 +1,62 @@
+https://stackoverflow.com/questions/41155950/
+
+
+# Load XAML Reader
+$reader=(New-Object System.Xml.XmlNodeReader $xaml)
+$Window=[Windows.Markup.XamlReader]::Load( $reader )
+
+# Map XAML Controls
+$xaml.SelectNodes("//*[@*[contains(translate(name(.),'n','N'),'Name')]]")  | ForEach {
+New-Variable  -Name $_.Name -Value $Window.FindName($_.Name) -Force
+}
+
+# Drag Event to validate file extensions for drop effect
+$listbox.Add_DragEnter({
+if ($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)) {
+    foreach ($filename in $_.Data.GetData([Windows.Forms.DataFormats]::FileDrop)) {
+        if(([System.IO.Path]::GetExtension($filename).ToUpper() -eq ".TXT")) {
+            $_.Effects = [System.Windows.DragDropEffects]::All
+            Write-Host 'Dropfile is a .TXT'
+        }
+        else {
+            $_.Effects = [System.Windows.DragDropEffects]::None
+            Write-Host 'Dropfile is NOT a .TXT'
+        }
+    }
+}
+})
+
+$Window.ShowDialog()
+
+
+Add-Type -AssemblyName PresentationFramework
+[Windows.Markup.XamlLoader]::Load((New-Object Windows.Markup.XamlReader).Load((New-Object System.Xml.XmlNodeReader (Get-Content "Path\to\YourMainWindow.xaml"))))
+
+# Define the event handler for the Drop event
+function OnDrop {
+    param(
+        [Object]$sender,
+        [Windows.DragEventArgs]$e
+    )
+
+    if ($e.Data.GetDataPresent([Windows.DataFormats]::FileDrop)) {
+        $files = $e.Data.GetData([Windows.DataFormats]::FileDrop)
+        
+        # Assuming $fileListView is the name of your ListView control
+        $fileListView.ItemsSource = $files | ForEach-Object {
+            New-Object PSObject -Property @{
+                FileName = [System.IO.Path]::GetFileName($_)
+                FilePath = $_
+                Status = "Pending"
+            }
+        }
+    }
+}
+
+# Get the main window and attach the Drop event handler
+$window = $([Windows.LogicalTreeHelper]::FindLogicalNode($null, "YourMainWindowName"))
+$window.Add_Drop([Windows.DragEventHandler]::new({OnDrop $_}))
+
+# Start the WPF application
+[Windows.Markup.XamlLoader]::Load((New-Object Windows.Markup.XamlReader).Load((New-Object System.Xml.XmlNodeReader (Get-Content "Path\to\YourMainWindow.xaml"))))
+[Windows.Markup.XamlLoader]::Load((New-Object Windows.Markup.XamlReader).Load((New-Object System.Xml.XmlNodeReader (Get-Content "Path\to\YourMainWindow.xaml")))).ShowDialog() | Out-Null
