@@ -1,0 +1,49 @@
+param (
+    [string]$PathParameter
+)
+
+# Function to resolve wildcard paths to actual file paths
+function Resolve-WildcardPath {
+    param (
+        [string]$Path
+    )
+    
+    $resolvedPaths = @(Resolve-Path $Path -ErrorAction SilentlyContinue)
+    if ($resolvedPaths.Count -eq 0) {
+        Write-Output "No matching files or folders found."
+    } else {
+        $resolvedPaths | ForEach-Object {
+            $_.Path
+        }
+    }
+}
+
+# Resolve wildcard path if applicable
+$resolvedPaths = Resolve-WildcardPath $PathParameter
+
+# Process each resolved path
+foreach ($resolvedPath in $resolvedPaths) {
+    if (Test-Path -Path $resolvedPath -PathType Container) {
+        # If the resolved path is a folder, get .xlsx files in the folder without subfolders
+        $xlsxFiles = Get-ChildItem -Path $resolvedPath -Filter *.xlsx -File
+        
+        # Print the paths of .xlsx files in the folder
+        if ($xlsxFiles.Count -gt 0) {
+            Write-Output "XLSX files in $resolvedPath:"
+            $xlsxFiles | ForEach-Object {
+                Write-Output $_.FullName
+            }
+        } else {
+            Write-Output "No .xlsx files found in $resolvedPath."
+        }
+    } elseif (Test-Path -Path $resolvedPath -PathType Leaf) {
+        # If the resolved path is a file, check if it's an .xlsx file
+        if ($resolvedPath -like "*.xlsx") {
+            Write-Output "XLSX file found: $resolvedPath"
+        } else {
+            Write-Output "The specified file is not an XLSX file."
+        }
+    } else {
+        Write-Output "The specified path is not a valid file or folder: $resolvedPath"
+    }
+}
